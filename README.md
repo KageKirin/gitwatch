@@ -22,6 +22,8 @@ Stop the tool before doing any pulls, rebases, or merges.
 
 Tested on OSX Yosemite.
 
+Deleting files does not work yet, moving neither.
+
 
 ## Requirements (and dependencies)
 
