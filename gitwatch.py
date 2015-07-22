@@ -9,9 +9,6 @@ import sh
 import optparse
 import datetime
 import pygit2
-import dulwich.repo
-import dulwich.diff_tree
-
 
 cwd = os.getcwd()
 
@@ -28,9 +25,9 @@ for line in pygit2.Config.get_global_config().get_multivar('user.email'):
 	user_mail += line
 print user_name, user_mail
 
-g2repo = pygit2.Repository(cwd)
-dwrepo = dulwich.repo.Repo(cwd)
 
+
+g2repo = pygit2.Repository(cwd)
 
 def g2_get_file_change_kind(filename):
 	git = g2repo
@@ -60,8 +57,6 @@ def g2_get_file_change_kind(filename):
 	return "null change"
 
 
-
-
 def g2_create_branch(branchname):
 	git = g2repo
 	branch = git.lookup_branch(branchname)
@@ -70,29 +65,6 @@ def g2_create_branch(branchname):
 	ref = git.lookup_reference(branch.name)
 	git.checkout(ref)
 
-
-def dw_commit_file(filename, kind):
-	message = 'gitwatch autocommit\n{0} {1}'.format(kind, filename)
-
-	git = dwrepo
-	staged = map(str,[filename])
-	git.stage( staged )
-	index = git.open_index()
-
-	try:
-		committer = git._get_user_identity()
-	except ValueError:
-		committer = user_name + ' <' + user_mail + '>'
-
-	try:
-		head = git.head()
-	except KeyError:
-		return git.do_commit(message, committer=committer)
-
-	changes = list(dulwich.diff_tree.tree_changes(git, index.commit(git.object_store), git['HEAD'].tree))
-	if changes and len(changes) > 0:
-		return git.do_commit(message, committer=committer)
-	return None
 
 def g2_commit_file(filename, kind):
 	message = 'gitwatch autocommit\n{0} {1}'.format(kind, filename)
