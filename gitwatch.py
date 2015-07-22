@@ -32,15 +32,47 @@ g2repo = pygit2.Repository(cwd)
 dwrepo = dulwich.repo.Repo(cwd)
 
 
+def g2_get_file_change_kind(filename):
+	git = g2repo
+	status = git.status()
+	try:
+		status[filename]
+	except KeyError:
+		# If there is nothing different since last save, git status will report no difference.
+		return "null change"
+
+	fstatus = git.status_file(filename)
+	#print(fstatus)
+	#print pygit2.GIT_STATUS_CURRENT, pygit2.GIT_STATUS_IGNORED, pygit2.GIT_STATUS_INDEX_NEW, pygit2.GIT_STATUS_INDEX_MODIFIED, pygit2.GIT_STATUS_INDEX_DELETED, pygit2.GIT_STATUS_WT_MODIFIED, pygit2.GIT_STATUS_WT_DELETED
+	if fstatus in [pygit2.GIT_STATUS_CURRENT, pygit2.GIT_STATUS_IGNORED]:
+		return "null change"
+	elif fstatus in [pygit2.GIT_STATUS_INDEX_NEW, pygit2.GIT_STATUS_WT_NEW]:
+		return "added"
+	elif fstatus in [pygit2.GIT_STATUS_INDEX_MODIFIED, pygit2.GIT_STATUS_WT_MODIFIED]:
+		return "updated"
+	elif fstatus in [pygit2.GIT_STATUS_INDEX_DELETED, pygit2.GIT_STATUS_WT_DELETED]:
+		return "removed"
+	#elif status in [pygit2.GIT_STATUS_CONFLICTED]:
+	#	assert(False)
+	#else:
+	#	assert(False)
+
+	return "null change"
+
+
+
+
 def g2_create_branch(branchname):
 	git = g2repo
-	branch = git.create_branch(branchname, git.head.get_object())
+	branch = git.lookup_branch(branchname)
+	if branch == None:
+		branch = git.create_branch(branchname, git.head.get_object())
 	ref = git.lookup_reference(branch.name)
 	git.checkout(ref)
 
 
 def dw_commit_file(filename, kind):
-	message = 'gitwatch autocommit (dulwich)\n{0} {1}'.format(kind, filename)
+	message = 'gitwatch autocommit\n{0} {1}'.format(kind, filename)
 
 	git = dwrepo
 	staged = map(str,[filename])
@@ -63,7 +95,7 @@ def dw_commit_file(filename, kind):
 	return None
 
 def g2_commit_file(filename, kind):
-	message = 'gitwatch autocommit (pygit2)\n{0} {1}'.format(kind, filename)
+	message = 'gitwatch autocommit\n{0} {1}'.format(kind, filename)
 
 	git = g2repo
 	index = git.index
@@ -71,8 +103,8 @@ def g2_commit_file(filename, kind):
 	index.add(filename)
 	index.write();
 
-	for entry in index:
-		print "added %s %s to index" % (entry.path, entry.hex)
+	#for entry in index:
+	#	print "added %s %s to index" % (entry.path, entry.hex)
 
 	status = git.status()
 	try:
@@ -96,31 +128,6 @@ def g2_commit_file(filename, kind):
 		parents
 	)
 
-"""
-def commit_old(filename):
-	repo.index.read()
-	print repo.status()
-	status = repo.status_file(filename)
-	print(status)
-	if status in [pygit2.GIT_STATUS_CURRENT, pygit2.GIT_STATUS_IGNORED]:
-		pass
-	elif status in [pygit2.GIT_STATUS_INDEX_NEW, pygit2.GIT_STATUS_INDEX_MODIFIED, pygit2.GIT_STATUS_INDEX_DELETED]:
-		repo.index.add(filename)
-		repo.index.write()
-		tree = repo.index.write_tree()
-		message = "Autocommit"
-
-		ref = repo.create_reference('HEAD', repo.head.get_object().hex).resolve()
-		oid = repo.create_commit(ref, author, committer, message, tree,[repo.head.get_object().hex])
-		repo.index.write()
-
-	elif status in [pygit2.GIT_STATUS_WT_NEW, pygit2.GIT_STATUS_WT_MODIFIED, pygit2.GIT_STATUS_WT_DELETED]:
-		pass
-	elif status in [pygit2.GIT_STATUS_CONFLICTED]:
-		assert(False)
-	else:
-		assert(False)
-"""
 
 def fsevent_callback(fsevent_handle, filename, events, error):
 	if error is not None:
@@ -135,14 +142,16 @@ def fsevent_callback(fsevent_handle, filename, events, error):
 		if events & pyuv.fs.UV_CHANGE:
 			evts.append('change')
 		txt = 'events: %s' % ', '.join(evts)
-	print('file: %s, %s' % (filename, txt))
-	g2_commit_file(filename, 'added')
+	kind = g2_get_file_change_kind(filename)
+	print('file: %s, %s, %s' % (filename, txt, kind))
+	g2_commit_file(filename, kind)
 
 
 
 
 def sig_cb(handle, signum):
 	handle.close()
+	print "and now, his watch has ended."
 
 
 def main(path):
