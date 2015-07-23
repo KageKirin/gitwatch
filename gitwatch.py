@@ -67,7 +67,7 @@ def g2_create_branch(branchname):
 
 
 def g2_commit_file(filename, kind):
-	message = 'gitwatch autocommit\n{0} {1}'.format(kind, filename)
+	message = '{0} {1} [gitwatch autocommit]'.format(kind, filename)
 
 	git = g2repo
 	index = git.index
@@ -123,6 +123,7 @@ def fsevent_callback(fsevent_handle, filename, events, error):
 
 def sig_cb(handle, signum):
 	handle.close()
+	print ''
 	print "and now, his watch has ended."
 
 
