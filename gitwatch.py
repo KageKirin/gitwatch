@@ -25,7 +25,7 @@ for line in pygit2.Config.get_global_config().get_multivar('user.email'):
 	user_mail += line
 print user_name, user_mail
 
-
+global_message = ""
 
 g2repo = pygit2.Repository(cwd)
 
@@ -66,24 +66,35 @@ def g2_create_branch(branchname):
 	git.checkout(ref)
 
 
-def g2_commit_file(filename, kind):
-	message = '{0} {1} [gitwatch autocommit]'.format(kind, filename)
+
+
+def g2_add_file(filename, kind):
+	git = g2repo
+	status = git.status()
+	global global_message
+	if filename in status:
+		try:
+			status[filename]
+			index = git.index
+			index.read()
+			index.add(filename)
+			index.write();
+			tmp = global_message
+			global_message = '{0}{1}'.format(tmp, ('{0} {1} [gitwatch autocommit]\n'.format(kind, filename)))
+
+		except KeyError:
+			# If there is nothing different since last save, git status will report no difference.
+			return None
+
+
+def g2_commit_file():
+	global global_message
+	message = global_message
+	global_message = ""
 
 	git = g2repo
-	index = git.index
-	index.read()
-	index.add(filename)
-	index.write();
-
 	#for entry in index:
 	#	print "added %s %s to index" % (entry.path, entry.hex)
-
-	status = git.status()
-	try:
-		status[filename]
-	except KeyError:
-		# If there is nothing different since last save, git status will report no difference.
-		return None
 
 	try:
 		HEAD = git.revparse_single('HEAD')
@@ -96,29 +107,41 @@ def g2_commit_file(filename, kind):
 		pygit2.Signature(user_name, user_mail),
 		pygit2.Signature(user_name, user_mail),
 		message,
-		index.write_tree(),
+		git.index.write_tree(),
 		parents
 	)
 
+timer = pyuv.Timer(pyuv.Loop.default_loop())
 
 def fsevent_callback(fsevent_handle, filename, events, error):
+	filename = os.path.relpath(os.path.join(fsevent_handle.path, filename), g2repo.workdir)
+
+	if '.git/' in filename:
+		return
+
+	if not os.path.exists(filename):
+		return
+
 	if error is not None:
 		txt = 'error %s: %s' % (error, pyuv.errno.strerror(error))
 	else:
-		filename = os.path.relpath(os.path.join(fsevent_handle.path, filename), g2repo.workdir)
-		if '.git/' in filename:
-			return
 		evts = []
 		if events & pyuv.fs.UV_RENAME:
 			evts.append('rename')
 		if events & pyuv.fs.UV_CHANGE:
 			evts.append('change')
 		txt = 'events: %s' % ', '.join(evts)
+
 	kind = g2_get_file_change_kind(filename)
 	print('file: %s, %s, %s' % (filename, txt, kind))
-	g2_commit_file(filename, kind)
+	g2_add_file(filename, kind)
+	print 'starting timer. committing in 30s'
+	timer.stop()
+	timer.start(timer_callback, 30, 0)
 
-
+def timer_callback(timer_handle):
+	print 'committing current index'
+	g2_commit_file()
 
 
 def sig_cb(handle, signum):
@@ -148,6 +171,7 @@ if __name__ == '__main__':
 	opts, args = parser.parse_args()
 	#print git.status()
 	branch = 'gitwatch/session-{0}'.format(datetime.datetime.now().strftime('%Y-%m-%d-%H-%M'))
-	print 'running on branch', branch
+	print 'Code gathers, and now my watch begins on', branch, '.'
+	print 'For your code is dark, and full of horrors.'
 	g2_create_branch(branch)
 	main(opts.path)
