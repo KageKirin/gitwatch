@@ -171,8 +171,8 @@ if __name__ == '__main__':
 	parser.add_option('-c', '--continue', dest='newbranch', action='store_false', help='continue watch in current branch', default=True)
 	opts, args = parser.parse_args()
 	#print git.status()
-	print opts
-	print args
+	#print opts
+	#print args
 
 	if opts.newbranch:
 		branch = 'gitwatch/session-{0}'.format(datetime.datetime.now().strftime('%Y-%m-%d-%H-%M'))
