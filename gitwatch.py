@@ -168,10 +168,15 @@ def main(path):
 if __name__ == '__main__':
 	parser = optparse.OptionParser()
 	parser.add_option('-p', '--path', help='a path to watch', default='.')
+	parser.add_option('-c', '--continue', dest='newbranch', action='store_false', help='continue watch in current branch', default=True)
 	opts, args = parser.parse_args()
 	#print git.status()
-	branch = 'gitwatch/session-{0}'.format(datetime.datetime.now().strftime('%Y-%m-%d-%H-%M'))
-	print 'Code gathers, and now my watch begins on', branch, '.'
-	print 'For your code is dark, and full of horrors.'
-	g2_create_branch(branch)
+	print opts
+	print args
+
+	if opts.newbranch:
+		branch = 'gitwatch/session-{0}'.format(datetime.datetime.now().strftime('%Y-%m-%d-%H-%M'))
+		print 'Code gathers, and now my watch begins on', branch, '.'
+		print 'For your code is dark, and full of horrors.'
+		g2_create_branch(branch)
 	main(opts.path)
